@@ -18,9 +18,18 @@ const
   https = require('https'),  
   request = require('request');
 
+var sync_request = require('sync-request');
+
+var bot = require("./botlib");
+
+bot.setup_bot();
+
+  
 var app = express();
 app.set('port', process.env.PORT || 5000);
 app.set('view engine', 'ejs');
+//app.set('views', __dirname + '/views');
+
 app.use(bodyParser.json({ verify: verifyRequestSignature }));
 app.use(express.static('public'));
 
@@ -61,6 +70,11 @@ if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
  * setup is the same token used here.
  *
  */
+ 
+app.get("/botview", function(req, res) {
+    res.render(__dirname + "/views/botview");
+})
+ 
 app.get('/webhook', function(req, res) {
   if (req.query['hub.mode'] === 'subscribe' &&
       req.query['hub.verify_token'] === VALIDATION_TOKEN) {
@@ -73,6 +87,12 @@ app.get('/webhook', function(req, res) {
 });
 
 
+
+app.post('/callback', function (req, res) {
+  var data = req.body;
+  bot.receivedPostback(data);
+  
+});
 /*
  * All callbacks for Messenger are POST-ed. They will be sent to the same
  * webhook. Be sure to subscribe your app to your page to receive callbacks
@@ -130,7 +150,7 @@ app.get('/authorize', function(req, res) {
 
   // Authorization Code should be generated per user by the developer. This will 
   // be passed to the Account Linking callback.
-  var authCode = "1234567890";
+  var authCode = "1895010803";
 
   // Redirect users to this URI on successful login
   var redirectURISuccess = redirectURI + "&authorization_code=" + authCode;
@@ -223,8 +243,7 @@ function receivedMessage(event) {
 
   console.log("Received message for user %d and page %d at %d with message:", 
     senderID, recipientID, timeOfMessage);
-  console.log(JSON.stringify(message));
-
+  
   var isEcho = message.is_echo;
   var messageId = message.mid;
   var appId = message.app_id;
@@ -234,85 +253,25 @@ function receivedMessage(event) {
   var messageText = message.text;
   var messageAttachments = message.attachments;
   var quickReply = message.quick_reply;
-
+  
+  
   if (isEcho) {
     // Just logging message echoes to console
-    console.log("Received echo for message %s and app %d with metadata %s", 
+    console.log("is echo - Received echo for message %s and app %d with metadata %s", 
       messageId, appId, metadata);
+        
+      //bot.receivedMessage(event);
     return;
   } else if (quickReply) {
     var quickReplyPayload = quickReply.payload;
     console.log("Quick reply for message %s with payload %s",
       messageId, quickReplyPayload);
-
-    sendTextMessage(senderID, "Quick reply tapped");
+    bot.receivedQuickReply(event);
     return;
+    }else{
+      bot.receivedLocation(event);
   }
 
-  if (messageText) {
-
-    // If we receive a text message, check to see if it matches any special
-    // keywords and send back the corresponding example. Otherwise, just echo
-    // the text we received.
-    switch (messageText) {
-      case 'image':
-        sendImageMessage(senderID);
-        break;
-
-      case 'gif':
-        sendGifMessage(senderID);
-        break;
-
-      case 'audio':
-        sendAudioMessage(senderID);
-        break;
-
-      case 'video':
-        sendVideoMessage(senderID);
-        break;
-
-      case 'file':
-        sendFileMessage(senderID);
-        break;
-
-      case 'button':
-        sendButtonMessage(senderID);
-        break;
-
-      case 'generic':
-        sendGenericMessage(senderID);
-        break;
-
-      case 'receipt':
-        sendReceiptMessage(senderID);
-        break;
-
-      case 'quick reply':
-        sendQuickReply(senderID);
-        break;        
-
-      case 'read receipt':
-        sendReadReceipt(senderID);
-        break;        
-
-      case 'typing on':
-        sendTypingOn(senderID);
-        break;        
-
-      case 'typing off':
-        sendTypingOff(senderID);
-        break;        
-
-      case 'account linking':
-        sendAccountLinking(senderID);
-        break;
-
-      default:
-        sendTextMessage(senderID, messageText);
-    }
-  } else if (messageAttachments) {
-    sendTextMessage(senderID, "Message with attachment received");
-  }
 }
 
 
@@ -363,8 +322,13 @@ function receivedPostback(event) {
 
   // When a postback is called, we'll send a message back to the sender to 
   // let them know it was successful
-  sendTextMessage(senderID, "Postback called");
+  
+  bot.receivedPostback(event);
+
 }
+
+exports.receivedPostback = receivedPostback;
+
 
 /*
  * Message Read Event
@@ -423,14 +387,14 @@ function sendImageMessage(recipientId) {
     }
   };
 
-  callSendAPI(messageData);
+  callSendAPIasync(messageData);
 }
-
+exports.sendImageMessage = sendImageMessage;
 /*
  * Send a Gif using the Send API.
  *
  */
-function sendGifMessage(recipientId) {
+function sendGifMessage(recipientId,path) {
   var messageData = {
     recipient: {
       id: recipientId
@@ -439,14 +403,16 @@ function sendGifMessage(recipientId) {
       attachment: {
         type: "image",
         payload: {
-          url: SERVER_URL + "/assets/instagram_logo.gif"
+          url: SERVER_URL + path
         }
       }
     }
   };
 
-  callSendAPI(messageData);
+  callSendAPIasync(messageData);
 }
+
+exports.sendGifMessage = sendGifMessage;
 
 /*
  * Send audio using the Send API.
@@ -467,14 +433,14 @@ function sendAudioMessage(recipientId) {
     }
   };
 
-  callSendAPI(messageData);
+  callSendAPIasync(messageData);
 }
 
 /*
  * Send a video using the Send API.
  *
  */
-function sendVideoMessage(recipientId) {
+function sendVideoMessage(recipientId,videopath) {
   var messageData = {
     recipient: {
       id: recipientId
@@ -483,14 +449,16 @@ function sendVideoMessage(recipientId) {
       attachment: {
         type: "video",
         payload: {
-          url: SERVER_URL + "/assets/allofus480.mov"
+          url: SERVER_URL + videopath
         }
       }
     }
   };
 
-  callSendAPI(messageData);
+  callSendAPIasync(messageData);
 }
+
+exports.sendVideoMessage = sendVideoMessage;
 
 /*
  * Send a file using the Send API.
@@ -511,7 +479,7 @@ function sendFileMessage(recipientId) {
     }
   };
 
-  callSendAPI(messageData);
+  callSendAPIasync(messageData);
 }
 
 /*
@@ -531,12 +499,13 @@ function sendTextMessage(recipientId, messageText) {
 
   callSendAPI(messageData);
 }
+exports.sendTextMessage = sendTextMessage;
 
 /*
  * Send a button message using the Send API.
  *
  */
-function sendButtonMessage(recipientId) {
+function sendButtonMessage(recipientId,text,buttons) {
   var messageData = {
     recipient: {
       id: recipientId
@@ -546,20 +515,8 @@ function sendButtonMessage(recipientId) {
         type: "template",
         payload: {
           template_type: "button",
-          text: "This is test text",
-          buttons:[{
-            type: "web_url",
-            url: "https://www.oculus.com/en-us/rift/",
-            title: "Open Web URL"
-          }, {
-            type: "postback",
-            title: "Trigger Postback",
-            payload: "DEVELOPER_DEFINED_PAYLOAD"
-          }, {
-            type: "phone_number",
-            title: "Call Phone Number",
-            payload: "+16505551234"
-          }]
+          text: text,
+          buttons: buttons
         }
       }
     }
@@ -567,12 +524,13 @@ function sendButtonMessage(recipientId) {
 
   callSendAPI(messageData);
 }
+exports.sendButtonMessage = sendButtonMessage;
 
 /*
  * Send a Structured Message (Generic Message type) using the Send API.
  *
  */
-function sendGenericMessage(recipientId) {
+function sendGenericMessage(recipientId, elements) {
   var messageData = {
     recipient: {
       id: recipientId
@@ -582,35 +540,7 @@ function sendGenericMessage(recipientId) {
         type: "template",
         payload: {
           template_type: "generic",
-          elements: [{
-            title: "rift",
-            subtitle: "Next-generation virtual reality",
-            item_url: "https://www.oculus.com/en-us/rift/",               
-            image_url: SERVER_URL + "/assets/rift.png",
-            buttons: [{
-              type: "web_url",
-              url: "https://www.oculus.com/en-us/rift/",
-              title: "Open Web URL"
-            }, {
-              type: "postback",
-              title: "Call Postback",
-              payload: "Payload for first bubble",
-            }],
-          }, {
-            title: "touch",
-            subtitle: "Your Hands, Now in VR",
-            item_url: "https://www.oculus.com/en-us/touch/",               
-            image_url: SERVER_URL + "/assets/touch.png",
-            buttons: [{
-              type: "web_url",
-              url: "https://www.oculus.com/en-us/touch/",
-              title: "Open Web URL"
-            }, {
-              type: "postback",
-              title: "Call Postback",
-              payload: "Payload for second bubble",
-            }]
-          }]
+          elements: elements
         }
       }
     }
@@ -618,12 +548,13 @@ function sendGenericMessage(recipientId) {
 
   callSendAPI(messageData);
 }
+exports.sendGenericMessage = sendGenericMessage;
 
 /*
  * Send a receipt message using the Send API.
  *
  */
-function sendReceiptMessage(recipientId) {
+function sendReceiptMessage(recipientId,text,name) {
   // Generate a random receipt ID as the API requires a unique ID
   var receiptId = "order" + Math.floor(Math.random()*1000);
 
@@ -636,46 +567,28 @@ function sendReceiptMessage(recipientId) {
         type: "template",
         payload: {
           template_type: "receipt",
-          recipient_name: "Peter Chang",
+          recipient_name: name,
           order_number: receiptId,
           currency: "USD",
-          payment_method: "Visa 1234",        
+          payment_method: "Dinheiro",        
           timestamp: "1428444852", 
           elements: [{
-            title: "Oculus Rift",
-            subtitle: "Includes: headset, sensor, remote",
+            title: text,
+            subtitle: "Pizza com refrigerante",
             quantity: 1,
-            price: 599.00,
+            price: 25.00,
             currency: "USD",
-            image_url: SERVER_URL + "/assets/riftsq.png"
-          }, {
-            title: "Samsung Gear VR",
-            subtitle: "Frost White",
-            quantity: 1,
-            price: 99.99,
-            currency: "USD",
-            image_url: SERVER_URL + "/assets/gearvrsq.png"
+            image_url: SERVER_URL + "/assets/pizzapromo.jpg"
           }],
-          address: {
-            street_1: "1 Hacker Way",
-            street_2: "",
-            city: "Menlo Park",
-            postal_code: "94025",
-            state: "CA",
-            country: "US"
-          },
           summary: {
-            subtotal: 698.99,
-            shipping_cost: 20.00,
-            total_tax: 57.67,
-            total_cost: 626.66
+            subtotal: 25.00,
+            shipping_cost: 5.00,
+            total_tax: 0.00,
+            total_cost: 30.00
           },
           adjustments: [{
-            name: "New Customer Discount",
-            amount: -50
-          }, {
-            name: "$100 Off Coupon",
-            amount: -100
+            name: "Promoção",
+            amount: -10
           }]
         }
       }
@@ -684,41 +597,50 @@ function sendReceiptMessage(recipientId) {
 
   callSendAPI(messageData);
 }
+exports.sendReceiptMessage = sendReceiptMessage;
 
 /*
  * Send a message with Quick Reply buttons.
  *
  */
-function sendQuickReply(recipientId) {
+function sendQuickReply(recipientId, text,replies) {
   var messageData = {
     recipient: {
       id: recipientId
     },
     message: {
-      text: "What's your favorite movie genre?",
-      quick_replies: [
-        {
-          "content_type":"text",
-          "title":"Action",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_ACTION"
-        },
-        {
-          "content_type":"text",
-          "title":"Comedy",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_COMEDY"
-        },
-        {
-          "content_type":"text",
-          "title":"Drama",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_DRAMA"
+      text: text,
+      quick_replies: replies
+    }
+  };
+
+  callSendAPI(messageData);
+}
+exports.sendQuickReply = sendQuickReply;
+
+function sendList(recipientId,elements,buttons) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+    "attachment": {
+        "type": "template",
+        "payload": {
+            "template_type": "list",
+            "top_element_style": "compact",
+            "elements": elements,
+            
+             "buttons": buttons
         }
-      ]
+      }
     }
   };
 
   callSendAPI(messageData);
 }
 
+exports.sendList = sendList;
 /*
  * Send a read receipt to indicate the message has been read
  *
@@ -803,6 +725,18 @@ function sendAccountLinking(recipientId) {
  *
  */
 function callSendAPI(messageData) {
+  
+  var response = sync_request('POST',"https://graph.facebook.com/v2.6/me/messages",
+    { 
+      qs: { access_token: PAGE_ACCESS_TOKEN },
+      json: messageData
+      
+    }); 
+   console.log(JSON.parse(response.getBody('utf8')));
+        
+}
+
+function callSendAPIasync(messageData) {
   request({
     uri: 'https://graph.facebook.com/v2.6/me/messages',
     qs: { access_token: PAGE_ACCESS_TOKEN },
@@ -826,6 +760,8 @@ function callSendAPI(messageData) {
     }
   });  
 }
+
+
 
 // Start server
 // Webhooks must be available via SSL with a certificate signed by a valid 

@@ -1,0 +1,82 @@
+<!-- 
+Copyright 2016-present, Facebook, Inc.
+All rights reserved.
+This source code is licensed under the license found in the
+LICENSE file in the root directory of this source tree.
+-->
+<html>
+  <head>
+    <title>tamanho de pizza</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      div { margin: 10px 0px 10px 0px; }
+    </style>
+  </head>
+  <body>
+    <script>
+        (function(d, s, id){
+          var js, fjs = d.getElementsByTagName(s)[0];
+          if (d.getElementById(id)) {return;}
+          js = d.createElement(s); js.id = id;
+          js.src = "//connect.facebook.com/en_US/messenger.Extensions.js";
+          fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'Messenger'));
+    </script>
+    
+    <h3>Escolha um tamanho de pizza</h3>
+    
+    <p>Será mostrado um cardapio caurosel com o tamnho da pizza desejado</p>
+    
+    <form action="">
+      <input style="margin-top:20px;"type="radio" name="tamanho" value="GRANDE"> Grande<br>
+      <input style="margin-top:20px;"type="radio" name="tamanho" value="MEDIA"> Médio<br>
+      <input style="margin-top:20px;"type="radio" name="tamanho" value="PEQUENA"> Pequeno <br>
+      <input style="margin-top:20px;"type="button" value="ESCOLHER" id = "teste">
+     
+    </form>
+ 
+    <p style="color:red;;">Obs.: Não funciona no browser</p>
+    
+    <script>
+      var psid;
+    
+      window.extAsyncInit = function() {
+        MessengerExtensions.getUserID(function success(uids) {
+        // User ID was successfully obtained. 
+            psid = uids.psid;
+            
+             }, function error(err, errorMessage) {      
+            // Error handling code
+                
+        }); 
+      };
+      
+      document.getElementById("teste").onclick = function() {
+            var radios = document.getElementsByName("tamanho");
+            
+            for (var i = 0; i < radios.length; i++) {
+               if (radios[i].checked) {
+                   var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance
+                   xmlhttp.open("POST", "https://pizzaloca-bot-newtonisaac.c9users.io/callback");
+                   xmlhttp.setRequestHeader("Content-Type", "application/json");
+               
+                   xmlhttp.send(JSON.stringify(
+                     {"recipient":{"id":"1804875809825423"},
+                     "timestamp":1499631941582,
+                     "sender":{"id":psid},
+                     "value":radios[i].value,
+                     "postback":{"payload":"CARDAPIO"}}));
+                   }
+                 }
+            MessengerExtensions.requestCloseBrowser(function success() {
+             
+            }, function error(err) {
+              
+            });
+      }
+      
+      </script>
+    
+    
+  </body>
+</html>
